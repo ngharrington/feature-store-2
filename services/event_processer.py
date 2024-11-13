@@ -7,8 +7,6 @@ class EventProcessor:
         pass
 
     async def process_event(self, event: Event):
-        # Do some processing here
-        await asyncio.sleep(1)
         print(f"Event {event.uuid} processed")
 
 
