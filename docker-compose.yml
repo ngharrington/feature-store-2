@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  user_access_service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5000"
+    environment:
+      - FLASK_ENV=development
+
+  event_sender:
+    build:
+      context: ./event_sender
+      dockerfile: Dockerfile
+    depends_on:
+      - user_access_service
