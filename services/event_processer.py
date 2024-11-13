@@ -1,13 +1,19 @@
 import asyncio
 
 from models.event import Event
+from models.aggregate import EventAggregateStore
 
 class EventProcessor:
-    def __init__(self):
-        pass
+    def __init__(self, aggregate_store: EventAggregateStore):
+        self.agg_store = aggregate_store
 
     async def process_event(self, event: Event):
-        print(f"Event {event.uuid} processed")
+        aggregates = await self.agg_store.get_aggregates_by_event_name(event.name)
+        for agg in aggregates:
+            agg.update(event.event_properties.user_id, event)
+
+
+        print("processed event")
 
 
 class EventConsumer:

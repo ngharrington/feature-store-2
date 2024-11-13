@@ -14,18 +14,13 @@ class AddCreditCardEventProperties(EventPropertiesBase):
 
 class ChargebackEventProperties(EventPropertiesBase):
     amount: float
-    total_spend: float
+
+class PurchaseEventProperties(EventPropertiesBase):
+    amount: float
 
 class Event(BaseModel):
     uuid: uuid.UUID
     name: str
     timestamp: datetime
     event_properties: Any
-
-
-REGISTERED_EVENTS_PROPERTIES_MAP = {
-    "scam_flag": ScamFlagEventProperties,
-    "add_credit_card": AddCreditCardEventProperties,
-    "chargeback": ChargebackEventProperties,
-}
 

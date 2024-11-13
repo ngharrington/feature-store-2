@@ -1,18 +1,22 @@
 from fastapi import FastAPI, HTTPException, status, Depends
-from config import get_event_properties_map
+from config import get_event_properties_map, ConfigError
 from services.event_registry import EventSchemaRegistry, EventTypeNotRegistered
 from services.event_processer import EventProcessor, EventConsumer
+from config import get_aggregate_configs, DEFAULT_AGGREGATE_CONFIG_DICT
 from models.event import Event
+from models.aggregate import EventAggregateConfig, EventAggregate, EventAggregateStore, AggregateType
 import asyncio
 from contextlib import asynccontextmanager
+from typing import List, Dict
 
 
-NUM_CONSUMERS = 25
+NUM_CONSUMERS = 3
 
 event_queue = asyncio.Queue()
 
 
 def _initialize_schema_registry():
+    print('initializing')
     event_schema_registry = EventSchemaRegistry()
     event_properties_map = get_event_properties_map()
     for event_name, event_properties in event_properties_map.items():
@@ -20,14 +24,50 @@ def _initialize_schema_registry():
     return event_schema_registry
 
 schema_registry = _initialize_schema_registry()
+aggregate_configs = get_aggregate_configs(DEFAULT_AGGREGATE_CONFIG_DICT)
+
 
 def get_schema_registry():
     return schema_registry
 
 
+async def build_aggregates(
+        aggregate_config: Dict[str, List[EventAggregateConfig]],
+        schema_registry: EventSchemaRegistry 
+        ) -> List[EventAggregate]:
+    aggregates = []
+    for config in aggregate_config:
+        try:
+            event_schema = await schema_registry.get_schema_by_name(config.event_name)
+            if config.field:
+                if not config.field in event_schema.model_fields:
+                    raise ConfigError(f"Field '{config.field}' not found in event properties schema for event '{config.event_name}'")
+            agg = EventAggregate(
+                name=config.name,
+                event_name=config.event_name,
+                type=AggregateType(config.type),
+                field=config.field,
+            )
+            aggregates.append(agg)
+        except EventTypeNotRegistered as e:
+            raise ConfigError(str(e))
+    return aggregates
+
+async def build_aggregate_store(aggregate_config, schema_registry):
+    aggregates = await build_aggregates(aggregate_config, schema_registry)
+    aggregate_store = EventAggregateStore()
+    for agg in aggregates:
+        aggregate_store.add_aggregate(agg)
+    return aggregate_store
+        
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    event_processor = EventProcessor()
+    aggregate_store = await build_aggregate_store(aggregate_configs, schema_registry)
+    event_processor = EventProcessor(
+        aggregate_store=aggregate_store
+    )
     consumer = EventConsumer(
         queue=event_queue,
         event_processor=event_processor
