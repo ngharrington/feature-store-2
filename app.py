@@ -2,9 +2,10 @@ from fastapi import FastAPI, HTTPException, status, Depends
 from config import get_event_properties_map, ConfigError
 from services.event_registry import EventSchemaRegistry, EventTypeNotRegistered
 from services.event_processer import EventProcessor, EventConsumer
-from config import get_aggregate_configs, DEFAULT_AGGREGATE_CONFIG_DICT
+from config import get_aggregate_configs, DEFAULT_AGGREGATE_CONFIG_DICT, DEFAULT_RULE_CONFIG_DICT
 from models.event import Event
 from models.aggregate import EventAggregateConfig, EventAggregate, EventAggregateStore, AggregateType
+from models.rules import RulesStore, RuleCondition, RuleOperation, Rule
 import asyncio
 from contextlib import asynccontextmanager
 from typing import List, Dict
@@ -25,7 +26,7 @@ def _initialize_schema_registry():
 
 schema_registry = _initialize_schema_registry()
 aggregate_configs = get_aggregate_configs(DEFAULT_AGGREGATE_CONFIG_DICT)
-
+rules_config_dict = DEFAULT_RULE_CONFIG_DICT
 
 def get_schema_registry():
     return schema_registry
@@ -61,12 +62,37 @@ async def build_aggregate_store(aggregate_config, schema_registry):
     return aggregate_store
         
 
+async def build_rule_store(
+    rules_config: List[Dict[str, str]], aggregate_store: EventAggregateStore
+):
+    rules_store = RulesStore()
+    for config in rules_config:
+        aggregate1 = await aggregate_store.get_aggregate_by_name(config["aggregate1"])
+        aggregate2 = (
+            None
+            if not config["aggregate2"]
+            else await aggregate_store.get_aggregate_by_name(config["aggregate2"])
+        )
+        condition = RuleCondition(config["condition"])
+        operation = RuleOperation(config["operation"])
+        rule = Rule(
+            name=config["name"],
+            operation=operation,
+            aggregate1=aggregate1,
+            aggregate2=aggregate2,
+            value=config["value"],
+            condition=condition,
+        )
+        rules_store.add_rule(rule)
+    return rules_store
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     aggregate_store = await build_aggregate_store(aggregate_configs, schema_registry)
+    rules_store = await build_rule_store(rules_config_dict, aggregate_store)
     event_processor = EventProcessor(
-        aggregate_store=aggregate_store
+        aggregate_store=aggregate_store,
+        rule_store=rules_store
     )
     consumer = EventConsumer(
         queue=event_queue,

@@ -29,12 +29,44 @@ DEFAULT_AGGREGATE_CONFIG_DICT = {
         "purchase": [{"type": "sum", "name": "total_purchase_amount", "field": "amount"}],
 }
 
+
+
 def get_aggregate_configs(config_dict: dict):
     configs = []
     for event_name, config_list in config_dict.items():
         for config in config_list:
             configs.append(EventAggregateConfig(event_name=event_name, **config))
     return configs
+
+DEFAULT_RULE_CONFIG_DICT = [
+    {
+        "name": "cannot_scam_message",
+        "operation": "VALUE",
+        "aggregate1": "total_scam_flags",
+        "aggregate2": None,
+        "condition": "<",
+        "value": 2,
+    },
+    {
+        "name": "too_many_distinct_zips",
+        "operation": "DIVIDE",
+        "aggregate1": "credit_card_distinct_zips",
+        "aggregate2": "total_credit_cards",
+        "condition": "<",
+        "value": 0.25,
+    },
+    {
+        "name": "chargeback_to_purchase_ratio",
+        "operation": "DIVIDE",
+        "aggregate1": "total_chargeback_amount",
+        "aggregate2": "total_purchase_amount",
+        "condition": "<",
+        "value": 0.10,
+    },
+]
+
+def get_rule_configs(config_dict: list):
+    return config_dict
 
 class ConfigError(Exception):
     pass
