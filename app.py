@@ -2,10 +2,11 @@ from fastapi import FastAPI, HTTPException, status, Depends
 from config import get_event_properties_map, ConfigError
 from services.event_registry import EventSchemaRegistry, EventTypeNotRegistered
 from services.event_processer import EventProcessor, EventConsumer
-from config import get_aggregate_configs, DEFAULT_AGGREGATE_CONFIG_DICT, DEFAULT_RULE_CONFIG_DICT
+from services.feature_registry import PlatformFeaturesRegistry
+from config import get_aggregate_configs, DEFAULT_AGGREGATE_CONFIG_DICT, DEFAULT_RULE_CONFIG_DICT, DEFAULT_FEATURES_CONFIG_DICT
 from models.event import Event
 from models.aggregate import EventAggregateConfig, EventAggregate, EventAggregateStore, AggregateType
-from models.rules import RulesStore, RuleCondition, RuleOperation, Rule
+from models.rules import RulesStore, RuleCondition, RuleOperation, PlatformFeature, Rule
 import asyncio
 from contextlib import asynccontextmanager
 from typing import List, Dict
@@ -86,13 +87,31 @@ async def build_rule_store(
         rules_store.add_rule(rule)
     return rules_store
 
+async def build_platform_feature_registry(
+    feature_config: List[Dict[str, List[str]]], rules_store: RulesStore):
+    feature_registry = PlatformFeaturesRegistry()
+    for config in feature_config:
+        rules = []
+        for rule_name in config["rules"]:
+            rule = await rules_store.get_rule_by_name(rule_name)
+            rules.append(rule)
+        feature = PlatformFeature(
+            name=config["name"],
+            rules=rules
+        )
+        feature_registry.add_feature(feature)
+    return feature_registry
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     aggregate_store = await build_aggregate_store(aggregate_configs, schema_registry)
     rules_store = await build_rule_store(rules_config_dict, aggregate_store)
+    feature_registry = await build_platform_feature_registry(DEFAULT_FEATURES_CONFIG_DICT, rules_store)
+    print(feature_registry)
     event_processor = EventProcessor(
         aggregate_store=aggregate_store,
-        rule_store=rules_store
+        rule_store=rules_store,
+        feature_registry=feature_registry
     )
     consumer = EventConsumer(
         queue=event_queue,

@@ -68,6 +68,19 @@ DEFAULT_RULE_CONFIG_DICT = [
 def get_rule_configs(config_dict: list):
     return config_dict
 
+
+DEFAULT_FEATURES_CONFIG_DICT = [
+    {
+        "name": "purchase",
+        "rules": ["too_many_distinct_zips", "chargeback_to_purchase_ratio"],
+    },
+    {
+        "name": "message",
+        "rules": ["cannot_scam_message"],
+    },
+]
+
+
 class ConfigError(Exception):
     pass
 

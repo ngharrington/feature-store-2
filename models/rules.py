@@ -90,3 +90,24 @@ class RulesStore:
         async with self._lock:
             return self._rules_by_aggregate[name]
 
+class PlatformFeature:
+    def __init__(self, name, rules):
+        # we want to seriously limit the valid names here for simplicity.
+        if not re.fullmatch(r"[a-z]+", name):
+            raise ValueError(
+                "The PlatformFeature name must contain only lowercase ASCII letters."
+            )
+        self.name = name
+        self.rules = rules
+        self._user_flags = defaultdict(lambda: True)
+        self._lock = asyncio.Lock()
+
+    async def disable(self, user_id):
+        async with self._lock:
+            self._user_flags[user_id] = False
+
+    async def can_access(self, user_id):
+        async with self._lock:
+            return self._user_flags[user_id]
+
+
