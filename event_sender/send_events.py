@@ -1,8 +1,11 @@
 import requests
+import datetime
 import time
+import uuid
+import os
 
 # URL of the user access service
-url = "http://user_access_service:5000/event"
+url = os.environ.get("EVENT_URL", "http://localhost:5000/event")
 
 # Simulate sending various events
 events = [
@@ -11,12 +14,22 @@ events = [
     {"name": "chargeback", "event_properties": { "user_id": "user123", "amount": 50, "total_spend": 500}},
 ]
 
+def refresh_fields(event):
+    """give unique/new values for required fields"""
+    event["uuid"] = str(uuid.uuid4())
+    event["timestamp"] = datetime.datetime.now().isoformat()
+
+
 def send_events():
+    time.sleep(1)
     while True:
         for event in events:
+            refresh_fields(event)
+            print(event)
             response = requests.post(url, json=event)
-            print(f"Sent event {event['name']}, response status: {response.status_code}")
-            time.sleep(5)  # Wait a bit before sending the next event
+            print(f"Sent event {event['name']}, response status: {response.status_code}, {response.text}")
+            time.sleep(3)  # Wait a bit before sending the next event
 
 if __name__ == "__main__":
+    print("RUNNING")
     send_events()

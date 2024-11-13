@@ -1,20 +1,39 @@
-from flask import Flask, jsonify, request
+from fastapi import FastAPI
+from models.event import Event
+from services.event_processer import EventProcessor, EventConsumer
+import asyncio
+from contextlib import asynccontextmanager
 
-# you do not have to use Flask, you can use any other framework like FastAPI, Flask, etc.. or nothing at all
-app = Flask(__name__)
 
-# Event endpoint to receive events from the external system
-@app.route('/event', methods=['POST'])
-def handle_event():
+NUM_CONSUMERS = 3
 
-    # Get the request data
-    event_data = request.get_json()
+event_queue = asyncio.Queue()
 
-    # Print the request body
-    app.logger.info(f"Received event data: {event_data}")
 
-    # Return a success response
-    return jsonify({"status": "success", "message": "Event received"}), 200
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    event_processor = EventProcessor()
+    consumer = EventConsumer(
+        queue=event_queue,
+        event_processor=event_processor
+    )
+    consumer_tasks = [asyncio.create_task(consumer.consume()) for _ in range(NUM_CONSUMERS)]
+    yield
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    await event_queue.join()
+    for task in consumer_tasks:
+        task.cancel()
+    await asyncio.gather(*consumer_tasks, return_exceptions=True)
+
+app = FastAPI(lifespan=lifespan)
+
+
+@app.get("/")
+async def read_root():
+    return {"Hello": "World"}
+
+
+@app.post("/event")
+async def publish_event(event: Event):
+    await event_queue.put(event)
+    return {"event_id": event.uuid}
