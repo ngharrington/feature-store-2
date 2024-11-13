@@ -3,13 +3,15 @@ import asyncio
 from models.event import Event
 from models.aggregate import EventAggregateStore
 from services.feature_registry import PlatformFeaturesRegistry
+from services.user_feature import UserFeatureService
 from models.rules import RulesStore
 
 class EventProcessor:
-    def __init__(self, aggregate_store: EventAggregateStore, rule_store: RulesStore, feature_registry: PlatformFeaturesRegistry):
+    def __init__(self, aggregate_store: EventAggregateStore, rule_store: RulesStore, feature_registry: PlatformFeaturesRegistry, user_feature_service: UserFeatureService):
         self.agg_store = aggregate_store
         self.rule_store = rule_store
         self.feature_registry = feature_registry
+        self.user_feature_service = user_feature_service
 
     async def process_event(self, event: Event):
         aggregates = await self.agg_store.get_aggregates_by_event_name(event.name)
@@ -32,9 +34,16 @@ class EventProcessor:
             features = await self.feature_registry.get_features_by_rule(rule.name)
             impacted_features.update(features)
 
-        print(f"impacted features: {list(impacted_features)}")
-
-        print("processed event")
+        for feature in impacted_features:
+            failed_rules = False
+            for rule in feature.rules:
+                if not rule.abides(event.event_properties.user_id):
+                    failed_rules = True
+                    break
+            if failed_rules:
+                await self.user_feature_service.revoke(event.event_properties.user_id, feature)
+            else:
+                await self.user_feature_service.grant(event.event_properties.user_id, feature)
 
 
 class EventConsumer:

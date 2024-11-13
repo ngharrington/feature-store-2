@@ -53,6 +53,7 @@ DEFAULT_RULE_CONFIG_DICT = [
         "aggregate1": "credit_card_distinct_zips",
         "aggregate2": "total_credit_cards",
         "condition": "<",
+        "denom_min": 3,
         "value": 0.25,
     },
     {

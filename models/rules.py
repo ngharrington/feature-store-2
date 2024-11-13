@@ -30,6 +30,8 @@ class Rule:
         aggregate2: EventAggregate,
         value: Union[float, int],
         condition: RuleCondition,
+        denom_min=None, # minimum value for the denomiter for DIVIDES. If the denominator is below this value
+                        # the rule always abides.
     ):
         self.name = name
         self.operation = operation
@@ -37,33 +39,42 @@ class Rule:
         self.condition = condition
         self.aggregate1 = aggregate1
         self.aggregate2 = aggregate2
+        self.denom_min = denom_min
         if operation == RuleOperation.DIVIDE and aggregate2 is None:
             raise ValueError(f"Aggregate2 is required for {operation} operation.")
         elif operation == RuleOperation.VALUE and aggregate2 is not None:
             raise ValueError(f"Aggregate2 is not required for {operation} operation.")
+        elif operation == RuleOperation.VALUE and denom_min is not None:
+            raise ValueError(f"Denom_min is not allowed for {operation} operation.")
 
     def _evaluate(self, user_id: str):
         print(f"Evaluating rule {self.name} for user {user_id}")
         print(f"Operation: {self.operation}")
+        override = False
+        value = None
         if self.operation == RuleOperation.DIVIDE:
             denom = self.aggregate2.get_user_aggregate(user_id)
+            if self.denom_min and denom < self.denom_min:
+                override = True
             if denom == 0:
-                return 0
-            return self.aggregate1.get_user_aggregate(user_id) / denom
+                value = 0
+            value = self.aggregate1.get_user_aggregate(user_id) / denom
         elif self.operation == RuleOperation.VALUE:
             value = self.aggregate1.get_user_aggregate(user_id)
-            print(f"Value: {value}")
-            return value
+
+        return value, override
 
     def abides(self, user_id: str):
         print("in abides")
         print(f"condition: {self.condition}")
+        value, override = self._evaluate(user_id)
+        if override:
+            return True
         if self.condition == RuleCondition.GREATER_THAN:
-            print("greater than")
-            return self._evaluate(user_id) > self.value
+            return value > self.value
         elif self.condition == RuleCondition.LESS_THAN:
             print("less than")
-            return self._evaluate(user_id) < self.value
+            return value < self.value
 
 
 class RulesStore:

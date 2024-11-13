@@ -26,6 +26,5 @@ class PlatformFeaturesRegistry:
         async with self._lock:
             return self._features_by_rule[name]
 
-    async def list_features(self):
-        async with self._lock:
-            return list(self.features.values())
+    def list_features(self):
+        return list(self.features.values())

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, status, Depends
+from fastapi import FastAPI, HTTPException, status, Depends, Header
 from config import get_event_properties_map, ConfigError
 from services.event_registry import EventSchemaRegistry, EventTypeNotRegistered
 from services.event_processer import EventProcessor, EventConsumer
@@ -10,6 +10,8 @@ from models.rules import RulesStore, RuleCondition, RuleOperation, PlatformFeatu
 import asyncio
 from contextlib import asynccontextmanager
 from typing import List, Dict
+from services.user_feature import UserFeatureService
+import re
 
 
 NUM_CONSUMERS = 3
@@ -28,10 +30,6 @@ def _initialize_schema_registry():
 schema_registry = _initialize_schema_registry()
 aggregate_configs = get_aggregate_configs(DEFAULT_AGGREGATE_CONFIG_DICT)
 rules_config_dict = DEFAULT_RULE_CONFIG_DICT
-
-def get_schema_registry():
-    return schema_registry
-
 
 async def build_aggregates(
         aggregate_config: Dict[str, List[EventAggregateConfig]],
@@ -83,6 +81,7 @@ async def build_rule_store(
             aggregate2=aggregate2,
             value=config["value"],
             condition=condition,
+            denom_min=config.get("denom_min"),
         )
         rules_store.add_rule(rule)
     return rules_store
@@ -107,11 +106,14 @@ async def lifespan(app: FastAPI):
     aggregate_store = await build_aggregate_store(aggregate_configs, schema_registry)
     rules_store = await build_rule_store(rules_config_dict, aggregate_store)
     feature_registry = await build_platform_feature_registry(DEFAULT_FEATURES_CONFIG_DICT, rules_store)
-    print(feature_registry)
+    user_feature_service = UserFeatureService(feature_registry=feature_registry)
+    app.state.user_feature_service = user_feature_service
+    app.state.feature_registry = feature_registry
     event_processor = EventProcessor(
         aggregate_store=aggregate_store,
         rule_store=rules_store,
-        feature_registry=feature_registry
+        feature_registry=feature_registry,
+        user_feature_service=user_feature_service,
     )
     consumer = EventConsumer(
         queue=event_queue,
@@ -168,3 +170,24 @@ async def get_queue_size():
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get queue size: {str(e)}"
         )
+    
+@app.get("/{feature_flag}")
+async def can_access_feature(feature_flag: str, x_user_id: str = Header(...)):
+    # check if format is of the name "can<feature_name>" where featurename is lowercase ascii
+    # for simplicity
+    if not re.match(r"^can[a-z]{1,16}+$", feature_flag):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid feature flag")
+    feature_name = feature_flag[3:]
+    feature = None
+    try:
+        feature = await app.state.feature_registry.get_feature_by_name(feature_name)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    
+    has_grant = await app.state.user_feature_service.has_grant(x_user_id, feature)
+    return {
+        "user_id": x_user_id,
+        "feature": feature.name,
+        "has_grant": has_grant
+    }
+    

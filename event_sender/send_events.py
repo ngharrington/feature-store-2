@@ -11,7 +11,8 @@ url = os.environ.get("EVENT_URL", "http://localhost:5000/event")
 events = [
     {"name": "scam_flag", "event_properties": { "user_id": "user123",}},
     {"name": "add_credit_card", "event_properties": {"zipcode": "12345", "user_id": "user123"}},
-    {"name": "chargeback", "event_properties": { "user_id": "user123", "amount": 50, "total_spend": 500}},
+    {"name": "purchase", "event_properties": { "user_id": "user123", "amount": 50}},
+    {"name": "chargeback", "event_properties": { "user_id": "user123", "amount": 30}},
 ]
 
 def refresh_fields(event):
