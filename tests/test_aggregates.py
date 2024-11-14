@@ -1,12 +1,12 @@
 import uuid
 from datetime import datetime
-import pytest
 from unittest.mock import Mock
+
+import pytest
+
 from models.aggregate import (
-    EventAggregate,
     AggregateType,
-    EventAggregateStore,
-    AggregationError,
+    EventAggregate,
     EventAggregateConfig,
 )
 from models.event import (
@@ -51,6 +51,7 @@ def test_event_aggregate_config_sum_with_field():
     )
     assert config.field == "some_field"
 
+
 def test_event_aggregate_count():
     # Create an EventAggregate of type COUNT
     aggregate = EventAggregate(
@@ -79,7 +80,7 @@ def test_event_aggregate_count():
 
     # Test with another user
     user_id_2 = "user_2"
-    event_properties_2 ={}
+    event_properties_2 = {}
     event_2 = Event(
         uuid=uuid.uuid4(),
         name="test_event",

@@ -30,8 +30,8 @@ class Rule:
         aggregate2: EventAggregate,
         value: Union[float, int],
         condition: RuleCondition,
-        denom_min=None, # minimum value for the denomiter for DIVIDES. If the denominator is below this value
-                        # the rule always abides.
+        denom_min=None,  # minimum value for the denomiter for DIVIDES. If the denominator is below this value
+        # the rule always abides.
     ):
         self.name = name
         self.operation = operation
@@ -101,6 +101,7 @@ class RulesStore:
         async with self._lock:
             return self._rules_by_aggregate[name]
 
+
 class PlatformFeature:
     def __init__(self, name, rules):
         # we want to seriously limit the valid names here for simplicity.
@@ -120,5 +121,3 @@ class PlatformFeature:
     async def can_access(self, user_id):
         async with self._lock:
             return self._user_flags[user_id]
-
-

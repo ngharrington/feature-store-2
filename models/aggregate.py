@@ -1,19 +1,23 @@
 import asyncio
 import enum
-from dataclasses import dataclass
-from models.event import Event
-from typing import Type
 from collections import defaultdict
+from dataclasses import dataclass
 from typing import Dict, List
+
 from pydantic import BaseModel
+
+from models.event import Event
+
 
 class AggregationError(Exception):
     pass
+
 
 class AggregateType(enum.Enum):
     COUNT = "count"
     DISTINCT_COUNT = "distinct_count"
     SUM = "sum"
+
 
 @dataclass
 class EventAggregateConfig:
@@ -33,9 +37,11 @@ class EventAggregateConfig:
                 "Field is required for SUM or DISTINCT_COUNT aggregate type."
             )
 
-class EventAggregate:
 
-    def __init__(self, name: str, event_name: str, type: AggregateType, field: str = None):
+class EventAggregate:
+    def __init__(
+        self, name: str, event_name: str, type: AggregateType, field: str = None
+    ):
         self.name = name
         self.event_name = event_name
         self.type = type
@@ -71,7 +77,7 @@ class EventAggregate:
         if self.type == AggregateType.DISTINCT_COUNT:
             return set()
         return 0
-    
+
 
 class EventAggregateStore:
     def __init__(self):
@@ -85,7 +91,9 @@ class EventAggregateStore:
         self._store[aggregate.name] = aggregate
         self._index_on_event_name(aggregate)
 
-    async def get_aggregates_by_event_name(self, event_name: str) -> List[EventAggregate]:
+    async def get_aggregates_by_event_name(
+        self, event_name: str
+    ) -> List[EventAggregate]:
         async with self._lock:
             return self._event_lookup.get(event_name, [])
 
@@ -94,7 +102,6 @@ class EventAggregateStore:
             if name not in self._store:
                 raise ValueError(f"Aggregate {name} not found.")
             return self._store[name]
-
 
     def _index_on_event_name(self, aggregate: EventAggregate):
         if aggregate.event_name not in self._event_lookup:

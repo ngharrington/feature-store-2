@@ -1,7 +1,8 @@
-from collections import defaultdict
 import asyncio
+from collections import defaultdict
 
 from models.rules import PlatformFeature
+
 
 class PlatformFeaturesRegistry:
     def __init__(self):

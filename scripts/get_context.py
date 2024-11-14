@@ -1,5 +1,6 @@
 import os
 
+
 def get_python_files_with_content(directory, ignore_dirs=[]):
     for root, dirs, files in os.walk(directory):
         # Modify dirs in-place to ignore specified directories
@@ -13,10 +14,11 @@ def get_python_files_with_content(directory, ignore_dirs=[]):
                         print(file.read())
                     print("\n")  # Add a newline between files
 
+
 # Specify the directory path here
 directory_path = "."
 
 # Hardcode the list of directories to ignore
-ignore_directories = ['event_sender', ".venv", "load_testing", "scripts"]
+ignore_directories = ["event_sender", ".venv", "load_testing", "scripts"]
 
 get_python_files_with_content(directory_path, ignore_dirs=ignore_directories)

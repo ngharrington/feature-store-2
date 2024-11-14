@@ -1,22 +1,28 @@
 import asyncio
+import datetime
+import uuid
 from collections import defaultdict, deque
-from typing import List
 
+from models.event import Event
 from models.rules import PlatformFeature
 from services.feature_registry import PlatformFeaturesRegistry
 from services.notifications import NotificationsService
-from models.event import Event
-import datetime
-import uuid
+
 
 class UserFeatureService:
-    def __init__(self, feature_registry: PlatformFeaturesRegistry, notifications_service: NotificationsService):
+    def __init__(
+        self,
+        feature_registry: PlatformFeaturesRegistry,
+        notifications_service: NotificationsService,
+    ):
         features = feature_registry.list_features()
         self._grants = defaultdict(lambda: self._generate_default_grants(features))
         self._notifications_service = notifications_service
         self._circuits = self._generate_default_grants(features)
         self._lock = asyncio.Lock()
-        self._access_logs = defaultdict(lambda: deque())  # Logs of (timestamp, user_id, success)
+        self._access_logs = defaultdict(
+            lambda: deque()
+        )  # Logs of (timestamp, user_id, success)
         self._total_users = defaultdict(set)  # Track all users per feature
         self._denied_users = defaultdict(set)  # Track denied users per feature
 
@@ -45,7 +51,9 @@ class UserFeatureService:
             self._log_access_attempt(user_id, feature, success=grant)
             return has_access
 
-    def _log_access_attempt(self, user_id: str, feature: PlatformFeature, success: bool):
+    def _log_access_attempt(
+        self, user_id: str, feature: PlatformFeature, success: bool
+    ):
         now = datetime.datetime.now()
         print(f"current time is {now}")
         log = self._access_logs[feature]
@@ -55,7 +63,7 @@ class UserFeatureService:
         print("Cutoff: ", cutoff)
         print(log[0][0])
         while log and log[0][0] < cutoff:
-            print('cleaning')
+            print("cleaning")
             _, old_user_id, old_success = log.popleft()
             self._total_users[feature].discard(old_user_id)
             if not old_success:
@@ -71,7 +79,9 @@ class UserFeatureService:
     def _generate_default_grants(self, features):
         return dict.fromkeys(features, True)
 
-    def _send_state_change_message(self, user_id: str, feature_name: str, new_grant_state: bool):
+    def _send_state_change_message(
+        self, user_id: str, feature_name: str, new_grant_state: bool
+    ):
         payload = {
             "event_properties": {
                 "user_id": user_id,
@@ -96,16 +106,17 @@ class UserFeatureService:
 
     async def _evaluate_circuit_breakers_once(self):
         print("Evaluating circuit breakers")
-        now = datetime.datetime.now()
         async with self._lock:
             for feature, total_users in self._total_users.items():
                 total_user_count = len(total_users)
                 denied_user_count = len(self._denied_users[feature])
                 if total_user_count == 0:
                     continue
-                
+
                 # Calculate the denial percentage
-                denial_rate = 0 if total_user_count == 0 else denied_user_count / total_user_count
+                denial_rate = (
+                    0 if total_user_count == 0 else denied_user_count / total_user_count
+                )
                 print(f"Denial rate for {feature}: {denial_rate}")
                 # Open or close the circuit based on the 5% threshold
                 if denial_rate > 0.05:
@@ -114,5 +125,3 @@ class UserFeatureService:
                 else:
                     print(f"Opening circuit for {feature}")
                     self._circuits[feature] = True
-
-
