@@ -1,6 +1,7 @@
 # app_builder.py
 
 import asyncio
+import logging
 from contextlib import asynccontextmanager
 from typing import Dict, List
 
@@ -31,10 +32,9 @@ from services.feature_registry import PlatformFeaturesRegistry
 from services.notifications import NotificationsService
 from services.user_feature import UserFeatureService
 
-import logging
-
 NUM_CONSUMERS = 3
 event_queue = asyncio.Queue()
+
 
 def configure_logger():
     logger = logging.getLogger("user_feature_service")
@@ -46,6 +46,7 @@ def configure_logger():
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     return logger
+
 
 def initialize_schema_registry():
     event_schema_registry = EventSchemaRegistry()
@@ -148,8 +149,9 @@ async def lifespan(app):
     )
     notifications_service = NotificationsService()
     user_feature_service = UserFeatureService(
-        feature_registry=feature_registry, notifications_service=notifications_service,
-        logger=logger
+        feature_registry=feature_registry,
+        notifications_service=notifications_service,
+        logger=logger,
     )
     event_processor = EventProcessor(
         aggregate_store=aggregate_store,
@@ -166,7 +168,9 @@ async def lifespan(app):
     app.state.schema_registry = schema_registry
     app.state.logger = logger
 
-    consumer = EventConsumer(queue=event_queue, event_processor=event_processor, logger=logger)
+    consumer = EventConsumer(
+        queue=event_queue, event_processor=event_processor, logger=logger
+    )
     consumer_tasks = [
         asyncio.create_task(consumer.consume()) for _ in range(NUM_CONSUMERS)
     ]

@@ -2,10 +2,9 @@ import re
 
 from fastapi import FastAPI, Header, HTTPException, status
 
+from app_builder import event_queue, lifespan
 from models.event import Event
 from services.event_registry import EventTypeNotRegistered
-
-from app_builder import event_queue, lifespan
 
 app = FastAPI(lifespan=lifespan)
 

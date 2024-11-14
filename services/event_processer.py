@@ -1,11 +1,11 @@
 import asyncio
+import logging
 
 from models.aggregate import EventAggregateStore
 from models.event import Event
 from models.rules import RulesStore
 from services.feature_registry import PlatformFeaturesRegistry
 from services.user_feature import UserFeatureService
-import logging
 
 
 class EventProcessor:
@@ -15,7 +15,7 @@ class EventProcessor:
         rule_store: RulesStore,
         feature_registry: PlatformFeaturesRegistry,
         user_feature_service: UserFeatureService,
-        logger: logging.Logger
+        logger: logging.Logger,
     ):
         self.agg_store = aggregate_store
         self.rule_store = rule_store
@@ -67,7 +67,12 @@ class EventProcessor:
 
 
 class EventConsumer:
-    def __init__(self, queue: asyncio.Queue, event_processor: EventProcessor, logger: logging.Logger):
+    def __init__(
+        self,
+        queue: asyncio.Queue,
+        event_processor: EventProcessor,
+        logger: logging.Logger,
+    ):
         self.queue = queue
         self.event_processor = event_processor
 

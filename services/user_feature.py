@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import logging
 import uuid
 from collections import defaultdict, deque
 
@@ -7,7 +8,6 @@ from models.event import Event
 from models.rules import PlatformFeature
 from services.feature_registry import PlatformFeaturesRegistry
 from services.notifications import NotificationsService
-import logging
 
 
 class UserFeatureService:
@@ -63,7 +63,6 @@ class UserFeatureService:
         # Maintain a sliding window of 10 minutes
         cutoff = now - datetime.timedelta(minutes=10)
         while log and log[0][0] < cutoff:
-
             _, old_user_id, old_success = log.popleft()
             self._total_users[feature].discard(old_user_id)
             if not old_success:

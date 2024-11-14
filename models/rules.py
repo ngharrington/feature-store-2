@@ -1,9 +1,9 @@
 import asyncio
 import enum
+import logging
 import re
 from collections import defaultdict
 from typing import Union
-import logging
 
 from models.aggregate import EventAggregate
 
@@ -32,7 +32,7 @@ class Rule:
         value: Union[float, int],
         condition: RuleCondition,
         denom_min=None,  # minimum value for the denomiter for DIVIDES. If the denominator is below this value the rule always abides.
-        logger: logging.Logger  = logging.getLogger(__name__),
+        logger: logging.Logger = logging.getLogger(__name__),
     ):
         self.name = name
         self.operation = operation
