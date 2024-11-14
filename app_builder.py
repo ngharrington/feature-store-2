@@ -31,12 +31,23 @@ from services.feature_registry import PlatformFeaturesRegistry
 from services.notifications import NotificationsService
 from services.user_feature import UserFeatureService
 
+import logging
+
 NUM_CONSUMERS = 3
 event_queue = asyncio.Queue()
 
+def configure_logger():
+    logger = logging.getLogger("user_feature_service")
+    logger.setLevel(logging.INFO)
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    return logger
 
 def initialize_schema_registry():
-    print("Initializing schema registry")
     event_schema_registry = EventSchemaRegistry()
     event_properties_map = get_event_properties_map()
     for event_name, event_properties in event_properties_map.items():
@@ -121,6 +132,7 @@ async def build_platform_feature_registry(
 
 @asynccontextmanager
 async def lifespan(app):
+    logger = configure_logger()
     # Initialize schema registry
     schema_registry = initialize_schema_registry()
 
@@ -136,13 +148,15 @@ async def lifespan(app):
     )
     notifications_service = NotificationsService()
     user_feature_service = UserFeatureService(
-        feature_registry=feature_registry, notifications_service=notifications_service
+        feature_registry=feature_registry, notifications_service=notifications_service,
+        logger=logger
     )
     event_processor = EventProcessor(
         aggregate_store=aggregate_store,
         rule_store=rules_store,
         feature_registry=feature_registry,
         user_feature_service=user_feature_service,
+        logger=logger,
     )
 
     # Attach components to app state
@@ -150,8 +164,9 @@ async def lifespan(app):
     app.state.feature_registry = feature_registry
     app.state.event_queue = event_queue
     app.state.schema_registry = schema_registry
+    app.state.logger = logger
 
-    consumer = EventConsumer(queue=event_queue, event_processor=event_processor)
+    consumer = EventConsumer(queue=event_queue, event_processor=event_processor, logger=logger)
     consumer_tasks = [
         asyncio.create_task(consumer.consume()) for _ in range(NUM_CONSUMERS)
     ]

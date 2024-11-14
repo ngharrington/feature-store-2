@@ -3,6 +3,7 @@ import enum
 import re
 from collections import defaultdict
 from typing import Union
+import logging
 
 from models.aggregate import EventAggregate
 
@@ -30,8 +31,8 @@ class Rule:
         aggregate2: EventAggregate,
         value: Union[float, int],
         condition: RuleCondition,
-        denom_min=None,  # minimum value for the denomiter for DIVIDES. If the denominator is below this value
-        # the rule always abides.
+        denom_min=None,  # minimum value for the denomiter for DIVIDES. If the denominator is below this value the rule always abides.
+        logger: logging.Logger  = logging.getLogger(__name__),
     ):
         self.name = name
         self.operation = operation
@@ -40,6 +41,7 @@ class Rule:
         self.aggregate1 = aggregate1
         self.aggregate2 = aggregate2
         self.denom_min = denom_min
+        self.logger = logger
         if operation == RuleOperation.DIVIDE and aggregate2 is None:
             raise ValueError(f"Aggregate2 is required for {operation} operation.")
         elif operation == RuleOperation.VALUE and aggregate2 is not None:
@@ -48,8 +50,7 @@ class Rule:
             raise ValueError(f"Denom_min is not allowed for {operation} operation.")
 
     def _evaluate(self, user_id: str):
-        print(f"Evaluating rule {self.name} for user {user_id}")
-        print(f"Operation: {self.operation}")
+        self.logger.info(f"Evaluating rule {self.name} for user {user_id}")
         override = False
         value = None
         if self.operation == RuleOperation.DIVIDE:
@@ -65,15 +66,12 @@ class Rule:
         return value, override
 
     def abides(self, user_id: str):
-        print("in abides")
-        print(f"condition: {self.condition}")
         value, override = self._evaluate(user_id)
         if override:
             return True
         if self.condition == RuleCondition.GREATER_THAN:
             return value > self.value
         elif self.condition == RuleCondition.LESS_THAN:
-            print("less than")
             return value < self.value
 
 

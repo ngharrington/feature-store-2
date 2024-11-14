@@ -50,6 +50,7 @@ async def get_queue_size():
     """
     Endpoint to return the current size of the event queue.
     """
+    app.state.logger.info("getting queue size")
     try:
         queue_size = event_queue.qsize()
         return {"queue_size": queue_size}

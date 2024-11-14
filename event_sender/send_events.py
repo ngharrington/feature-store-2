@@ -36,7 +36,6 @@ def send_events():
     while True:
         for event in events:
             refresh_fields(event)
-            print(event)
             response = requests.post(url, json=event)
             print(
                 f"Sent event {event['name']}, response status: {response.status_code}, {response.text}"

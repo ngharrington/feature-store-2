@@ -7,6 +7,7 @@ from models.event import Event
 from models.rules import PlatformFeature
 from services.feature_registry import PlatformFeaturesRegistry
 from services.notifications import NotificationsService
+import logging
 
 
 class UserFeatureService:
@@ -14,8 +15,10 @@ class UserFeatureService:
         self,
         feature_registry: PlatformFeaturesRegistry,
         notifications_service: NotificationsService,
+        logger: logging.Logger,
     ):
         features = feature_registry.list_features()
+        self.logger = logger
         self._grants = defaultdict(lambda: self._generate_default_grants(features))
         self._notifications_service = notifications_service
         self._circuits = self._generate_default_grants(features)
@@ -55,15 +58,12 @@ class UserFeatureService:
         self, user_id: str, feature: PlatformFeature, success: bool
     ):
         now = datetime.datetime.now()
-        print(f"current time is {now}")
         log = self._access_logs[feature]
         log.append((now, user_id, success))
         # Maintain a sliding window of 10 minutes
         cutoff = now - datetime.timedelta(minutes=10)
-        print("Cutoff: ", cutoff)
-        print(log[0][0])
         while log and log[0][0] < cutoff:
-            print("cleaning")
+
             _, old_user_id, old_success = log.popleft()
             self._total_users[feature].discard(old_user_id)
             if not old_success:
@@ -105,7 +105,7 @@ class UserFeatureService:
             await asyncio.sleep(15)  # Evaluate every minute
 
     async def _evaluate_circuit_breakers_once(self):
-        print("Evaluating circuit breakers")
+        self.logger.info("Evaluating circuit breakers")
         async with self._lock:
             for feature, total_users in self._total_users.items():
                 total_user_count = len(total_users)
@@ -117,11 +117,11 @@ class UserFeatureService:
                 denial_rate = (
                     0 if total_user_count == 0 else denied_user_count / total_user_count
                 )
-                print(f"Denial rate for {feature}: {denial_rate}")
+                self.logger.info(f"Denial rate for {feature}: {denial_rate}")
                 # Open or close the circuit based on the 5% threshold
                 if denial_rate > 0.05:
-                    print(f"Breaking circuit for {feature}")
+                    self.logger.info(f"Breaking circuit for {feature}")
                     self._circuits[feature] = False
                 else:
-                    print(f"Opening circuit for {feature}")
+                    self.logger.info(f"Closing circuit for {feature}")
                     self._circuits[feature] = True
