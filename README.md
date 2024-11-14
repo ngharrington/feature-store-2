@@ -34,6 +34,37 @@ A simple service to manage user access based on event-driven rules.
 4. Implement your code in `app.py`
     - Note: `app.py` is just the entrypoint.  Feel free to break of the code into multiple files as you see fit.
 
+## Running Tests
+
+In a virtual environment install the dependencies and test dependences
+```bash
+python -m pip install -r requirements.txt
+python -m pip install -r requirements-test.txt
+```
+
+Run the tests
+
+```bash
+python -m pytest tests/
+```
+
+To run load tests start the service and start locust UI
+
+```bash
+docker compose up user_access_service --build
+
+cd load_testing
+python -m locust
+```
+
+In the UI you can select the host (http://localhost:5001 with the docker setup). You can additionally set the number of "users".
+The load test is configured so that roughly you will get one request per second from each user.
+The load requests are half event posts and half access queries.
+
+Here is an image from a load test with 2000 concurrent requests, run on my laptop with 11th Gen Intel I5 processors.
+
+![Load Test][assets/load_test.png]
+
 ## Endpoints
 
 - `**POST /event**:` Receives events.
