@@ -56,7 +56,6 @@ async def test_access_allowed_when_circuit_breaker_is_open():
     notifications_service = NotificationsService()
     service = UserFeatureService(feature_registry, notifications_service)
 
-
     feature = feature_registry.test_feature
     user_id = "user_1"
 
@@ -75,7 +74,6 @@ async def test_access_denied_when_circuit_breaker_is_closed_and_no_grant():
     notifications_service = NotificationsService()
     service = UserFeatureService(feature_registry, notifications_service)
 
-
     feature = feature_registry.test_feature
     user_id = "user_1"
 
@@ -92,7 +90,6 @@ async def test_access_granted_when_circuit_breaker_is_closed_and_user_has_grant(
     feature_registry = MockPlatformFeaturesRegistry()
     notifications_service = NotificationsService()
     service = UserFeatureService(feature_registry, notifications_service)
-
 
     feature = feature_registry.test_feature
     user_id = "user_1"
