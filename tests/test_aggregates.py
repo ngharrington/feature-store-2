@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 from unittest.mock import Mock
+import uuid
 
 import pytest
 
@@ -68,13 +69,20 @@ def test_event_aggregate_count():
         event_properties=event_properties,
     )
 
+    event2 = Event(
+        uuid=uuid.uuid4(),
+        name="test_event",
+        timestamp=datetime.now(),
+        event_properties=event_properties,
+    )
+
     # Update the aggregate with the event
     aggregate.update(user_id=user_id, event=event)
     value = aggregate.get_user_aggregate(user_id=user_id)
     assert value == 1
 
     # Update again
-    aggregate.update(user_id=user_id, event=event)
+    aggregate.update(user_id=user_id, event=event2)
     value = aggregate.get_user_aggregate(user_id=user_id)
     assert value == 2
 
@@ -93,6 +101,35 @@ def test_event_aggregate_count():
     assert value_2 == 1
 
 
+def test_event_aggregate_count_dedup():
+    # Create an EventAggregate of type COUNT
+    aggregate = EventAggregate(
+        name="count_aggregate", event_name="test_event", type=AggregateType.COUNT
+    )
+
+    # Create events with user_id
+    user_id = "user_1"
+    event_properties = {}
+    event = Event(
+        uuid=uuid.uuid4(),
+        name="test_event",
+        timestamp=datetime.now(),
+        event_properties=event_properties,
+    )
+
+    event2 = event
+
+    # Update the aggregate with the event
+    aggregate.update(user_id=user_id, event=event)
+    value = aggregate.get_user_aggregate(user_id=user_id)
+    assert value == 1
+
+    # Update again, should get the same count
+    aggregate.update(user_id=user_id, event=event2)
+    value = aggregate.get_user_aggregate(user_id=user_id)
+    assert value == 1
+
+
 def test_event_aggregate_sum_with_mock_properties():
     aggregate = EventAggregate(
         name="sum_aggregate",
@@ -103,12 +140,15 @@ def test_event_aggregate_sum_with_mock_properties():
 
     mock_event_1 = Mock()
     mock_event_1.event_properties = Mock(amount=100.0)
+    mock_event_1.uuid = uuid.uuid4()
 
     mock_event_2 = Mock()
     mock_event_2.event_properties = Mock(amount=50.0)
+    mock_event_2.uuid = uuid.uuid4()
 
     mock_event_3 = Mock()
     mock_event_3.event_properties = Mock(amount=200.0)
+    mock_event_3.uuid = uuid.uuid4()
 
     user_id = "user_1"
 

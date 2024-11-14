@@ -51,17 +51,21 @@ class EventAggregate:
 
     def update(self, user_id: str, event: Event):
         if self.type == AggregateType.COUNT:
-            self._store[user_id] += 1
+            self._store[user_id].add(event.uuid) # this is a set so dedupes
         elif self.type == AggregateType.SUM:
-            self._store[user_id] += self._get_event_field_value(event)
+            val = self._get_event_field_value(event)
+            if event.uuid not in [x[0] for x in self._store[user_id]]:
+                self._store[user_id].append((event.uuid, val))
         elif self.type == AggregateType.DISTINCT_COUNT:
             self._store[user_id].add(self._get_event_field_value(event))
 
     def get_user_aggregate(self, user_id: str):
-        if self.type in (AggregateType.COUNT, AggregateType.SUM):
-            return self._store.get(user_id, 0)
+        if self.type == AggregateType.COUNT:
+            return len(self._store.get(user_id, set()))
         elif self.type == AggregateType.DISTINCT_COUNT:
             return len(self._store.get(user_id, set()))
+        elif self.type == AggregateType.SUM:
+            return sum([x[1] for x in self._store.get(user_id, [])])
         else:
             raise ValueError("Invalid aggregate type.")
 
@@ -74,9 +78,10 @@ class EventAggregate:
         return val
 
     def _initial_value(self):
-        if self.type == AggregateType.DISTINCT_COUNT:
+        if self.type in (AggregateType.DISTINCT_COUNT, AggregateType.COUNT):
             return set()
-        return 0
+        return []
+
 
 
 class EventAggregateStore:
