@@ -63,7 +63,7 @@ The load requests are half event posts and half access queries.
 
 Here is an image from a load test with 2000 concurrent requests, run on my laptop with 11th Gen Intel I5 processors.
 
-![Load Test][assets/load_test.png]
+![Load Test](assets/load_test.png)
 
 ## Endpoints
 
