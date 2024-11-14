@@ -14,6 +14,10 @@ class EventProcessor:
         self.user_feature_service = user_feature_service
 
     async def process_event(self, event: Event):
+        # Assume for the purposes of this exercise that
+        # we never get duplicate events.
+        # In a real case we need to ensure that we update aggregates
+        # exactly once per distinct event (i.e. with a store of uuids)
         aggregates = await self.agg_store.get_aggregates_by_event_name(event.name)
         # keep track of any Rules associated with the aggregates
         all_rules = set()

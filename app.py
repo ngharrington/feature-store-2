@@ -11,6 +11,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from typing import List, Dict
 from services.user_feature import UserFeatureService
+from services.notifications import NotificationsService
 import re
 
 
@@ -106,7 +107,11 @@ async def lifespan(app: FastAPI):
     aggregate_store = await build_aggregate_store(aggregate_configs, schema_registry)
     rules_store = await build_rule_store(rules_config_dict, aggregate_store)
     feature_registry = await build_platform_feature_registry(DEFAULT_FEATURES_CONFIG_DICT, rules_store)
-    user_feature_service = UserFeatureService(feature_registry=feature_registry)
+    notifications_service = NotificationsService()
+    user_feature_service = UserFeatureService(
+        feature_registry=feature_registry,
+        notifications_service=notifications_service
+    )
     app.state.user_feature_service = user_feature_service
     app.state.feature_registry = feature_registry
     event_processor = EventProcessor(
@@ -120,9 +125,12 @@ async def lifespan(app: FastAPI):
         event_processor=event_processor
     )
     consumer_tasks = [asyncio.create_task(consumer.consume()) for _ in range(NUM_CONSUMERS)]
+    circuit_breaker_task = asyncio.create_task(user_feature_service.evaluate_circuit_breakers())
+    
     yield
 
     await event_queue.join()
+    circuit_breaker_task.cancel()
     for task in consumer_tasks:
         task.cancel()
     await asyncio.gather(*consumer_tasks, return_exceptions=True)

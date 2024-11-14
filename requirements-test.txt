@@ -1,0 +1,4 @@
+pytest
+locust
+freezegun
+pytest-asyncio
