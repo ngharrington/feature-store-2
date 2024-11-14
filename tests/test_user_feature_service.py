@@ -2,6 +2,7 @@ import pytest
 from freezegun import freeze_time
 
 from services.user_feature import UserFeatureService
+from services.notifications import NotificationsService
 
 
 class MockPlatformFeature:
@@ -24,7 +25,8 @@ class MockPlatformFeaturesRegistry:
 @pytest.mark.asyncio
 async def test_circuit_breaker_opens_when_denial_rate_exceeds_threshold():
     feature_registry = MockPlatformFeaturesRegistry()
-    service = UserFeatureService(feature_registry)
+    notifications_service = NotificationsService()
+    service = UserFeatureService(feature_registry, notifications_service)
 
     feature = feature_registry.test_feature
     user_ids = [f"user_{i}" for i in range(100)]
@@ -51,7 +53,9 @@ async def test_circuit_breaker_opens_when_denial_rate_exceeds_threshold():
 @pytest.mark.asyncio
 async def test_access_allowed_when_circuit_breaker_is_open():
     feature_registry = MockPlatformFeaturesRegistry()
-    service = UserFeatureService(feature_registry)
+    notifications_service = NotificationsService()
+    service = UserFeatureService(feature_registry, notifications_service)
+
 
     feature = feature_registry.test_feature
     user_id = "user_1"
@@ -68,7 +72,9 @@ async def test_access_allowed_when_circuit_breaker_is_open():
 @pytest.mark.asyncio
 async def test_access_denied_when_circuit_breaker_is_closed_and_no_grant():
     feature_registry = MockPlatformFeaturesRegistry()
-    service = UserFeatureService(feature_registry)
+    notifications_service = NotificationsService()
+    service = UserFeatureService(feature_registry, notifications_service)
+
 
     feature = feature_registry.test_feature
     user_id = "user_1"
@@ -78,13 +84,15 @@ async def test_access_denied_when_circuit_breaker_is_closed_and_no_grant():
     service._circuits[feature] = True
 
     has_access = await service.has_grant(user_id, feature)
-    assert has_access
+    assert not has_access
 
 
 @pytest.mark.asyncio
 async def test_access_granted_when_circuit_breaker_is_closed_and_user_has_grant():
     feature_registry = MockPlatformFeaturesRegistry()
-    service = UserFeatureService(feature_registry)
+    notifications_service = NotificationsService()
+    service = UserFeatureService(feature_registry, notifications_service)
+
 
     feature = feature_registry.test_feature
     user_id = "user_1"

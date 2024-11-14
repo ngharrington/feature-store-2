@@ -132,14 +132,14 @@ async def lifespan(app: FastAPI):
     user_feature_service = UserFeatureService(
         feature_registry=feature_registry, notifications_service=notifications_service
     )
-    app.state.user_feature_service = user_feature_service
-    app.state.feature_registry = feature_registry
     event_processor = EventProcessor(
         aggregate_store=aggregate_store,
         rule_store=rules_store,
         feature_registry=feature_registry,
         user_feature_service=user_feature_service,
     )
+    app.state.user_feature_service = user_feature_service
+    app.state.feature_registry = feature_registry
     consumer = EventConsumer(queue=event_queue, event_processor=event_processor)
     consumer_tasks = [
         asyncio.create_task(consumer.consume()) for _ in range(NUM_CONSUMERS)
